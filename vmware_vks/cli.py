@@ -16,6 +16,12 @@ namespace_app = typer.Typer(help="Namespace commands")
 app.add_typer(supervisor_app, name="supervisor")
 app.add_typer(namespace_app, name="namespace")
 
+tkc_app = typer.Typer(help="TanzuKubernetesCluster commands")
+kubeconfig_app = typer.Typer(help="Kubeconfig commands")
+
+app.add_typer(tkc_app, name="tkc")
+app.add_typer(kubeconfig_app, name="kubeconfig")
+
 console = Console()
 
 
@@ -174,3 +180,224 @@ def namespace_vm_classes(
     for c in classes:
         table.add_row(str(c["id"]), str(c["cpu_count"]), str(c["memory_mib"]), str(c["gpu_count"]))
     console.print(table)
+
+
+# ---------------------------------------------------------------------------
+# TKC commands
+# ---------------------------------------------------------------------------
+
+@tkc_app.command("list")
+def tkc_list(
+    namespace: Optional[str] = typer.Option(None, "-n", "--namespace"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """List TKC clusters (optionally filtered by namespace)."""
+    from vmware_vks.ops.tkc import list_tkc_clusters
+    si = _get_si(target)
+    result = list_tkc_clusters(si, namespace=namespace)
+    table = Table("Name", "Namespace", "Phase", "K8s Version")
+    for c in result["clusters"]:
+        table.add_row(c["name"], c["namespace"], c["phase"], c["k8s_version"])
+    console.print(f"Total: {result['total']}")
+    console.print(table)
+
+
+@tkc_app.command("get")
+def tkc_get(
+    name: str = typer.Argument(...),
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Get detailed info for a TKC cluster."""
+    import json
+    from vmware_vks.ops.tkc import get_tkc_cluster
+    si = _get_si(target)
+    result = get_tkc_cluster(si, name, namespace)
+    console.print_json(json.dumps(result))
+
+
+@tkc_app.command("versions")
+def tkc_versions(
+    namespace: str = typer.Option(..., "-n", "--namespace", help="vSphere Namespace"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """List available K8s versions for TKC clusters."""
+    from vmware_vks.ops.tkc import get_tkc_available_versions
+    si = _get_si(target)
+    result = get_tkc_available_versions(si, namespace)
+    if result.get("error"):
+        console.print(f"[yellow]{result['error']}[/yellow]")
+        console.print(f"[dim]{result.get('hint', '')}[/dim]")
+        return
+    table = Table("Version")
+    for v in result["versions"]:
+        table.add_row(v["version"])
+    console.print(table)
+
+
+@tkc_app.command("create")
+def tkc_create(
+    name: str = typer.Argument(...),
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    k8s_version: Optional[str] = typer.Option(None, "--version"),
+    vm_class: Optional[str] = typer.Option(None, "--vm-class"),
+    control_plane: int = typer.Option(1, "--control-plane"),
+    workers: int = typer.Option(3, "--workers"),
+    storage_policy: str = typer.Option("vsphere-storage", "--storage-policy"),
+    apply: bool = typer.Option(False, "--apply", help="Apply (default: dry-run)"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Create a TKC cluster (dry-run by default, use --apply to create).
+
+    Missing --version or --vm-class triggers interactive prompts.
+    """
+    import json
+    from vmware_vks.ops.tkc import create_tkc_cluster, get_tkc_available_versions
+    from vmware_vks.ops.namespace import list_vm_classes
+
+    si = _get_si(target)
+
+    # Interactive prompts for missing params
+    if not k8s_version:
+        versions_result = get_tkc_available_versions(si, namespace)
+        version_choices = [v["version"] for v in versions_result.get("versions", [])]
+        if version_choices:
+            console.print(f"Available versions: {', '.join(version_choices[:5])}")
+        k8s_version = typer.prompt("K8s version")
+
+    if not vm_class:
+        classes = list_vm_classes(si)
+        class_choices = [c["id"] for c in classes if c.get("id")]
+        if class_choices:
+            console.print(f"Available VM classes: {', '.join(class_choices[:5])}")
+        vm_class = typer.prompt("VM class")
+
+    result = create_tkc_cluster(
+        si, name=name, namespace=namespace, k8s_version=k8s_version,
+        vm_class=vm_class, control_plane_count=control_plane,
+        worker_count=workers, storage_class=storage_policy,
+        dry_run=not apply,
+    )
+    console.print_json(json.dumps(result))
+
+
+@tkc_app.command("scale")
+def tkc_scale(
+    name: str = typer.Argument(...),
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    workers: int = typer.Option(..., "--workers"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Scale TKC cluster worker node count."""
+    import json
+    from vmware_vks.ops.tkc import scale_tkc_cluster
+    si = _get_si(target)
+    result = scale_tkc_cluster(si, name, namespace, workers)
+    console.print_json(json.dumps(result))
+
+
+@tkc_app.command("upgrade")
+def tkc_upgrade(
+    name: str = typer.Argument(...),
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    version: str = typer.Option(..., "--version"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Upgrade TKC cluster to a new K8s version."""
+    import json
+    from vmware_vks.ops.tkc import upgrade_tkc_cluster
+    si = _get_si(target)
+    result = upgrade_tkc_cluster(si, name, namespace, version)
+    console.print_json(json.dumps(result))
+
+
+@tkc_app.command("delete")
+def tkc_delete(
+    name: str = typer.Argument(...),
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    force: bool = typer.Option(False, "--force"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Delete a TKC cluster (rejects if workloads running)."""
+    import json
+    from vmware_vks.ops.tkc import delete_tkc_cluster
+
+    si = _get_si(target)
+
+    # Show dry-run first
+    dry = delete_tkc_cluster(si, name, namespace, confirmed=True, dry_run=True, force=force)
+    console.print_json(json.dumps(dry))
+
+    if not _double_confirm(name, "TKC cluster"):
+        console.print("[yellow]Aborted.[/yellow]")
+        raise typer.Exit(1)
+
+    result = delete_tkc_cluster(si, name, namespace, confirmed=True, dry_run=False, force=force)
+    console.print_json(json.dumps(result))
+
+
+# ---------------------------------------------------------------------------
+# Kubeconfig commands
+# ---------------------------------------------------------------------------
+
+@kubeconfig_app.command("supervisor")
+def kubeconfig_supervisor(
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Get Supervisor kubeconfig."""
+    from vmware_vks.ops.kubeconfig import get_supervisor_kubeconfig_str
+    si = _get_si(target)
+    kc = get_supervisor_kubeconfig_str(si, namespace)
+    console.print(kc)
+
+
+@kubeconfig_app.command("get")
+def kubeconfig_get(
+    name: str = typer.Argument(...),
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Get TKC cluster kubeconfig."""
+    import json
+    from vmware_vks.ops.kubeconfig import write_kubeconfig
+    si = _get_si(target)
+    result = write_kubeconfig(si, name, namespace, output_path=output)
+    if output:
+        console.print(f"[green]Written to {output}[/green]")
+    else:
+        console.print(result.get("kubeconfig", ""))
+
+
+# ---------------------------------------------------------------------------
+# Harbor command
+# ---------------------------------------------------------------------------
+
+@app.command("harbor")
+def harbor_info(
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """Get Harbor registry info."""
+    import json
+    from vmware_vks.ops.harbor import get_harbor_info
+    si = _get_si(target)
+    result = get_harbor_info(si)
+    console.print_json(json.dumps(result))
+
+
+# ---------------------------------------------------------------------------
+# Storage command
+# ---------------------------------------------------------------------------
+
+@app.command("storage")
+def storage_usage(
+    namespace: str = typer.Option(..., "-n", "--namespace"),
+    target: Optional[str] = typer.Option(None, "-t", "--target"),
+):
+    """List PVC storage usage for a Namespace."""
+    import json
+    from vmware_vks.ops.storage import list_namespace_storage_usage
+    si = _get_si(target)
+    result = list_namespace_storage_usage(si, namespace)
+    console.print_json(json.dumps(result))
