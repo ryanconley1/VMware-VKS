@@ -236,6 +236,239 @@ def list_vm_classes(target: str | None = None) -> list[dict]:
     return _ns.list_vm_classes(si)
 
 
+# ---------------------------------------------------------------------------
+# TKC tools
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def list_tkc_clusters(namespace: str | None = None, target: str | None = None) -> dict:
+    """List TanzuKubernetesCluster (TKC) clusters.
+
+    Args:
+        namespace: vSphere Namespace to filter by (lists all if not specified).
+        target: vCenter target name.
+
+    Returns: total count and list of clusters with status and K8s version.
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import tkc as _tkc
+    return _tkc.list_tkc_clusters(si, namespace=namespace)
+
+
+@mcp.tool()
+def get_tkc_cluster(name: str, namespace: str, target: str | None = None) -> dict:
+    """Get detailed info for a single TKC cluster.
+
+    Args:
+        name: TKC cluster name.
+        namespace: vSphere Namespace containing the cluster.
+        target: vCenter target name.
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import tkc as _tkc
+    return _tkc.get_tkc_cluster(si, name, namespace)
+
+
+@mcp.tool()
+def get_tkc_available_versions(namespace: str, target: str | None = None) -> dict:
+    """List K8s versions available for new TKC clusters.
+
+    Args:
+        namespace: vSphere Namespace (used to connect to Supervisor).
+        target: vCenter target name.
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import tkc as _tkc
+    return _tkc.get_tkc_available_versions(si, namespace)
+
+
+@mcp.tool()
+def create_tkc_cluster(
+    name: str,
+    namespace: str,
+    k8s_version: str,
+    vm_class: str,
+    control_plane_count: int = 1,
+    worker_count: int = 3,
+    storage_class: str = "vsphere-storage",
+    dry_run: bool = True,
+    target: str | None = None,
+) -> dict:
+    """Create a TanzuKubernetesCluster.
+
+    IMPORTANT: dry_run=True by default — returns YAML plan. Set dry_run=False to apply.
+
+    Workflow: call get_tkc_available_versions first to find valid k8s_version,
+    call list_vm_classes to find valid vm_class.
+
+    Args:
+        name: Cluster name.
+        namespace: vSphere Namespace.
+        k8s_version: K8s version (e.g. 'v1.28.4+vmware.1').
+        vm_class: VM class for nodes (e.g. 'best-effort-large').
+        control_plane_count: 1 or 3.
+        worker_count: Number of worker nodes (>= 1).
+        storage_class: Storage class name.
+        dry_run: Return YAML plan without applying (default: True).
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import tkc as _tkc
+    result = _tkc.create_tkc_cluster(
+        si, name=name, namespace=namespace, k8s_version=k8s_version,
+        vm_class=vm_class, control_plane_count=control_plane_count,
+        worker_count=worker_count, storage_class=storage_class, dry_run=dry_run,
+    )
+    if not dry_run:
+        _audit.log(
+            target=target or "default", operation="create_tkc_cluster",
+            resource=f"{namespace}/{name}",
+            parameters={"k8s_version": k8s_version, "vm_class": vm_class,
+                        "workers": worker_count},
+            result="success",
+        )
+    return result
+
+
+@mcp.tool()
+def scale_tkc_cluster(
+    name: str, namespace: str, worker_count: int, target: str | None = None
+) -> dict:
+    """Scale TKC cluster worker node count.
+
+    Args:
+        name: TKC cluster name.
+        namespace: vSphere Namespace.
+        worker_count: New worker node count (>= 1).
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import tkc as _tkc
+    result = _tkc.scale_tkc_cluster(si, name, namespace, worker_count)
+    _audit.log(target=target or "default", operation="scale_tkc_cluster",
+               resource=f"{namespace}/{name}", parameters={"worker_count": worker_count},
+               result="success")
+    return result
+
+
+@mcp.tool()
+def upgrade_tkc_cluster(
+    name: str, namespace: str, k8s_version: str, target: str | None = None
+) -> dict:
+    """Upgrade TKC cluster to a new K8s version.
+
+    Args:
+        name: TKC cluster name.
+        namespace: vSphere Namespace.
+        k8s_version: Target K8s version (use get_tkc_available_versions to list).
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import tkc as _tkc
+    result = _tkc.upgrade_tkc_cluster(si, name, namespace, k8s_version)
+    _audit.log(target=target or "default", operation="upgrade_tkc_cluster",
+               resource=f"{namespace}/{name}", parameters={"k8s_version": k8s_version},
+               result="success")
+    return result
+
+
+@mcp.tool()
+def delete_tkc_cluster(
+    name: str,
+    namespace: str,
+    confirmed: bool = False,
+    dry_run: bool = True,
+    force: bool = False,
+    target: str | None = None,
+) -> dict:
+    """Delete a TKC cluster.
+
+    SAFETY: Rejects if Deployments/StatefulSets are running (unless force=True).
+    IMPORTANT: dry_run=True by default — set dry_run=False AND confirmed=True to delete.
+
+    Args:
+        name: TKC cluster name.
+        namespace: vSphere Namespace.
+        confirmed: Must be True to proceed (safety gate).
+        dry_run: Preview without deleting (default: True).
+        force: Skip workload check (dangerous).
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import tkc as _tkc
+    result = _tkc.delete_tkc_cluster(
+        si, name, namespace, confirmed=confirmed, dry_run=dry_run, force=force,
+    )
+    if not dry_run and confirmed:
+        _audit.log(target=target or "default", operation="delete_tkc_cluster",
+                   resource=f"{namespace}/{name}", parameters={"force": force},
+                   result="success")
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Access tools
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def get_supervisor_kubeconfig(namespace: str, target: str | None = None) -> dict:
+    """Get kubeconfig for the Supervisor K8s API endpoint.
+
+    Args:
+        namespace: vSphere Namespace (context for the kubeconfig).
+        target: vCenter target name.
+
+    Returns: kubeconfig YAML string.
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import kubeconfig as _kc
+    kc_str = _kc.get_supervisor_kubeconfig_str(si, namespace)
+    return {"namespace": namespace, "kubeconfig": kc_str}
+
+
+@mcp.tool()
+def get_tkc_kubeconfig(
+    name: str,
+    namespace: str,
+    output_path: str | None = None,
+    target: str | None = None,
+) -> dict:
+    """Get kubeconfig for a TKC cluster.
+
+    Args:
+        name: TKC cluster name.
+        namespace: vSphere Namespace.
+        output_path: Write to file if provided (e.g. '~/.kube/my-cluster.yaml').
+                     Returns kubeconfig string if not specified.
+    """
+    from pathlib import Path
+    si = _get_si(target)
+    from vmware_vks.ops import kubeconfig as _kc
+    path = Path(output_path).expanduser() if output_path else None
+    return _kc.write_kubeconfig(si, name, namespace, output_path=path)
+
+
+@mcp.tool()
+def get_harbor_info(target: str | None = None) -> dict:
+    """Get embedded Harbor registry info (URL, storage usage, status).
+
+    Returns registry URL, storage used, and health status.
+    Returns error hint if Harbor is not enabled on this Supervisor.
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import harbor as _harbor
+    return _harbor.get_harbor_info(si)
+
+
+@mcp.tool()
+def list_namespace_storage_usage(namespace: str, target: str | None = None) -> dict:
+    """List PVCs and storage usage for a vSphere Namespace.
+
+    Args:
+        namespace: vSphere Namespace name.
+        target: vCenter target name.
+    """
+    si = _get_si(target)
+    from vmware_vks.ops import storage as _storage
+    return _storage.list_namespace_storage_usage(si, namespace)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     mcp.run(transport="stdio")
