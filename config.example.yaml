@@ -1,0 +1,9 @@
+# ~/.vmware-vks/config.yaml
+# Copy to ~/.vmware-vks/config.yaml and set passwords in ~/.vmware-vks/.env
+
+targets:
+  - name: vcenter01
+    host: vcenter.example.com
+    username: administrator@vsphere.local
+    port: 443
+    verify_ssl: false
