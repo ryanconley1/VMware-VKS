@@ -3,18 +3,20 @@
 
 [English](README.md) | [中文](README-CN.md)
 
-MCP Skill + CLI，用于管理 vSphere with Tanzu (VKS) — Supervisor 集群、vSphere 命名空间和 TanzuKubernetesCluster 生命周期。
-
-> **VMware MCP Skills 系列：**
->
-> | Skill | 功能范围 | 工具数 |
-> |-------|---------|:-----:|
-> | **vmware-monitor**（只读） | 清单、健康、告警、事件 | 8 |
-> | **vmware-aiops**（完整运维） | 虚拟机生命周期、部署、Guest 操作 | 33 |
-> | **vmware-storage** | 数据存储、iSCSI、vSAN | 11 |
-> | **vmware-vks**（本 Skill） | Supervisor、命名空间、TKC 生命周期 | 20 |
+MCP Skill + CLI，用于 VMware vSphere with Tanzu (VKS) 管理 — Supervisor 集群、vSphere 命名空间和 TanzuKubernetesCluster 生命周期。20 个 MCP 工具。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## 配套 Skills
+
+> **VMware MCP Skills 系列。** 每个 Skill 负责一个独立领域 — 按需安装即可。
+
+| Skill | 功能范围 | 工具数 | 安装 |
+|-------|---------|:-----:|------|
+| **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | 只读监控、告警、事件 | 8 | `uv tool install vmware-monitor` |
+| **[vmware-aiops](https://github.com/zw008/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | 33 | `uv tool install vmware-aiops` |
+| **[vmware-storage](https://github.com/zw008/VMware-Storage)** | 数据存储、iSCSI、vSAN | 11 | `uv tool install vmware-storage` |
+| **vmware-vks**（本 Skill） | Supervisor、命名空间、TKC 生命周期 | 20 | `uv tool install vmware-vks` |
 
 ## 前置要求
 
@@ -48,6 +50,29 @@ vmware-vks tkc list
 vmware-vks tkc create my-cluster -n dev --version v1.28.4+vmware.1 --vm-class best-effort-large
 vmware-vks tkc create my-cluster -n dev --apply
 ```
+
+## 常用工作流
+
+### 部署新 TKC 集群
+
+1. 检查兼容性 → `vmware-vks check`
+2. 查看可用 K8s 版本 → `vmware-vks tkc versions -n dev`
+3. 创建命名空间（如需）→ `vmware-vks namespace create dev --cluster domain-c1 --storage-policy vSAN --cpu 16000 --memory 32768 --apply`
+4. 创建 TKC 集群 → `vmware-vks tkc create dev-cluster -n dev --version v1.28.4+vmware.1 --control-plane 1 --workers 3 --vm-class best-effort-large --apply`
+5. 获取 kubeconfig → `vmware-vks kubeconfig get dev-cluster -n dev`
+
+### 扩容工作节点（压测场景）
+
+1. 查看当前状态 → `vmware-vks tkc get dev-cluster -n dev`
+2. 扩容 → `vmware-vks tkc scale dev-cluster -n dev --workers 6`
+3. 监控进度 → `vmware-vks tkc get dev-cluster -n dev`（观察 phase）
+4. 测试结束后缩容
+
+### 命名空间资源管理
+
+1. 列出命名空间 → `vmware-vks namespace list`
+2. 查看使用情况 → `vmware-vks storage -n dev`
+3. 更新配额 → `vmware-vks namespace update dev --cpu 32000 --memory 65536`
 
 ## 工具参考（20 个工具）
 
@@ -90,6 +115,28 @@ vmware-vks tkc create my-cluster -n dev --apply
 | `get_tkc_kubeconfig` | TKC kubeconfig（标准输出或文件） | 只读 |
 | `get_harbor_info` | 内置 Harbor 仓库信息 | 只读 |
 | `list_namespace_storage_usage` | PVC 列表和容量统计 | 只读 |
+
+## 架构
+
+```
+用户（自然语言）
+  ↓
+AI Agent（Claude Code / Goose / Cursor）
+  ↓ 读取 SKILL.md
+  ↓
+vmware-vks CLI  ─── 或 ───  vmware-vks MCP Server（stdio）
+  │
+  ├─ Layer 1: pyVmomi → vCenter REST API
+  │   Supervisor 状态、存储策略、命名空间 CRUD、VM 类、Harbor
+  │
+  └─ Layer 2: kubernetes client → Supervisor K8s API 端点
+      TKC CR apply / get / delete（cluster.x-k8s.io/v1beta1）
+      Kubeconfig 基于 Layer 1 会话令牌构建
+  ↓
+vCenter Server 8.x+（Workload Management 已启用）
+  ↓
+Supervisor 集群 → vSphere 命名空间 → TanzuKubernetesCluster
+```
 
 ## CLI 参考
 
@@ -155,6 +202,32 @@ vmware-vks storage -n <命名空间>
 | 凭据安全 | 密码仅从环境变量（`.env` 文件）加载，不写入 `config.yaml` |
 | 审计日志 | 所有写操作记录到 `~/.vmware-vks/audit.log` |
 | stdio 传输 | 无网络监听端口；MCP 通过 stdio 运行 |
+
+## 故障排查
+
+### "VKS not compatible" 错误
+
+必须在 vCenter 中启用 Workload Management。检查：vCenter UI -> Workload Management。需要 vSphere 8.x+ 且持有 Enterprise Plus 或 VCF 许可证。
+
+### 创建命名空间失败，提示 "storage policy not found"
+
+先列出可用策略：`vmware-vks supervisor storage-policies`。策略名称区分大小写。
+
+### TKC 集群卡在 "Creating" 阶段
+
+检查 vCenter 中的 Supervisor 事件。常见原因：ESXi 主机资源不足、NSX-T 网络问题、或存储策略在目标数据存储上不可用。
+
+### Kubeconfig 获取失败
+
+运行 vmware-vks 的机器必须能访问 Supervisor API 端点。检查 6443 端口的防火墙规则。
+
+### 扩容操作无效果
+
+扩容前确认集群处于 "Running" 阶段。处于 "Creating" 或 "Updating" 阶段的集群会拒绝扩容操作。
+
+### 删除命名空间被意外拒绝
+
+命名空间删除保护会在内部存在 TKC 集群时阻止删除。请先删除命名空间内的所有 TKC 集群，然后重试。
 
 ## 版本兼容性
 

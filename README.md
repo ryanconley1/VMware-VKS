@@ -3,18 +3,20 @@
 
 [English](README.md) | [中文](README-CN.md)
 
-MCP Skill + CLI for managing vSphere with Tanzu (VKS) — Supervisor clusters, vSphere Namespaces, and TanzuKubernetesCluster lifecycle.
-
-> **Part of the VMware MCP Skills family:**
->
-> | Skill | Scope | Tools |
-> |-------|-------|:-----:|
-> | **vmware-monitor** (read-only) | Inventory, health, alarms, events | 8 |
-> | **vmware-aiops** (full ops) | VM lifecycle, deployment, guest ops, plans | 33 |
-> | **vmware-storage** | Datastores, iSCSI, vSAN | 11 |
-> | **vmware-vks** (this) | Supervisor, Namespaces, TKC lifecycle | 20 |
+MCP Skill + CLI for VMware vSphere with Tanzu (VKS) management — Supervisor clusters, vSphere Namespaces, and TanzuKubernetesCluster lifecycle. 20 MCP tools.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## Companion Skills
+
+> **Part of the VMware MCP Skills family.** Each skill handles a distinct domain — install only what you need.
+
+| Skill | Scope | Tools | Install |
+|-------|-------|:-----:|---------|
+| **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | Read-only monitoring, alarms, events | 8 | `uv tool install vmware-monitor` |
+| **[vmware-aiops](https://github.com/zw008/VMware-AIops)** | VM lifecycle, deployment, guest ops, clusters | 33 | `uv tool install vmware-aiops` |
+| **[vmware-storage](https://github.com/zw008/VMware-Storage)** | Datastores, iSCSI, vSAN | 11 | `uv tool install vmware-storage` |
+| **vmware-vks** (this) | Supervisor, Namespaces, TKC lifecycle | 20 | `uv tool install vmware-vks` |
 
 ## Prerequisites
 
@@ -48,6 +50,29 @@ vmware-vks tkc list
 vmware-vks tkc create my-cluster -n dev --version v1.28.4+vmware.1 --vm-class best-effort-large
 vmware-vks tkc create my-cluster -n dev --apply
 ```
+
+## Common Workflows
+
+### Deploy a New TKC Cluster
+
+1. Check compatibility → `vmware-vks check`
+2. List available K8s versions → `vmware-vks tkc versions -n dev`
+3. Create namespace (if needed) → `vmware-vks namespace create dev --cluster domain-c1 --storage-policy vSAN --cpu 16000 --memory 32768 --apply`
+4. Create TKC cluster → `vmware-vks tkc create dev-cluster -n dev --version v1.28.4+vmware.1 --control-plane 1 --workers 3 --vm-class best-effort-large --apply`
+5. Get kubeconfig → `vmware-vks kubeconfig get dev-cluster -n dev`
+
+### Scale Workers for Load Testing
+
+1. Check current state → `vmware-vks tkc get dev-cluster -n dev`
+2. Scale up → `vmware-vks tkc scale dev-cluster -n dev --workers 6`
+3. Monitor progress → `vmware-vks tkc get dev-cluster -n dev` (watch phase)
+4. Scale back down after test
+
+### Namespace Resource Management
+
+1. List namespaces → `vmware-vks namespace list`
+2. Check usage → `vmware-vks storage -n dev`
+3. Update quota → `vmware-vks namespace update dev --cpu 32000 --memory 65536`
 
 ## Tool Reference (20 tools)
 
@@ -90,6 +115,28 @@ vmware-vks tkc create my-cluster -n dev --apply
 | `get_tkc_kubeconfig` | TKC kubeconfig (stdout or file) | Read |
 | `get_harbor_info` | Embedded Harbor registry info | Read |
 | `list_namespace_storage_usage` | PVC list and capacity stats | Read |
+
+## Architecture
+
+```
+User (Natural Language)
+  ↓
+AI Agent (Claude Code / Goose / Cursor)
+  ↓ reads SKILL.md
+  ↓
+vmware-vks CLI  ─── or ───  vmware-vks MCP Server (stdio)
+  │
+  ├─ Layer 1: pyVmomi → vCenter REST API
+  │   Supervisor status, storage policies, Namespace CRUD, VM classes, Harbor
+  │
+  └─ Layer 2: kubernetes client → Supervisor K8s API endpoint
+      TKC CR apply / get / delete  (cluster.x-k8s.io/v1beta1)
+      Kubeconfig built from Layer 1 session token
+  ↓
+vCenter Server 8.x+ (Workload Management enabled)
+  ↓
+Supervisor Cluster → vSphere Namespaces → TanzuKubernetesCluster
+```
 
 ## CLI Reference
 
@@ -167,6 +214,32 @@ Add to your AI agent's MCP config:
 | Credential safety | Passwords only from environment variables (`.env` file), never in `config.yaml` |
 | Audit logging | All write operations logged to `~/.vmware-vks/audit.log` |
 | stdio transport | No network listener; MCP runs over stdio only |
+
+## Troubleshooting
+
+### "VKS not compatible" error
+
+Workload Management must be enabled in vCenter. Check: vCenter UI -> Workload Management. Requires vSphere 8.x+ with Enterprise Plus or VCF license.
+
+### Namespace creation fails with "storage policy not found"
+
+List available policies first: `vmware-vks supervisor storage-policies`. Policy names are case-sensitive.
+
+### TKC cluster stuck in "Creating" phase
+
+Check Supervisor events in vCenter. Common causes: insufficient resources on ESXi hosts, network issues with NSX-T, or storage policy not available on target datastore.
+
+### Kubeconfig retrieval fails
+
+Supervisor API endpoint must be reachable from the machine running vmware-vks. Check firewall rules for port 6443.
+
+### Scale operation has no effect
+
+Verify the cluster is in "Running" phase before scaling. Clusters in "Creating" or "Updating" phase reject scale operations.
+
+### Delete namespace rejected unexpectedly
+
+The namespace delete guard prevents deletion when TKC clusters exist inside. Delete all TKC clusters in the namespace first, then retry.
 
 ## Version Compatibility
 
