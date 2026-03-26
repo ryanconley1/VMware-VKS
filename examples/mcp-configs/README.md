@@ -50,11 +50,13 @@ vmware-vks can run alongside other VMware MCP skills simultaneously:
 {
   "mcpServers": {
     "vmware-monitor": {
-      "command": "vmware-monitor-mcp",
+      "command": "uvx",
+      "args": ["--from", "vmware-monitor", "vmware-monitor-mcp"],
       "env": { "VMWARE_MONITOR_CONFIG": "~/.vmware-monitor/config.yaml" }
     },
     "vmware-vks": {
-      "command": "vmware-vks-mcp",
+      "command": "uvx",
+      "args": ["--from", "vmware-vks", "vmware-vks-mcp"],
       "env": { "VMWARE_VKS_CONFIG": "~/.vmware-vks/config.yaml" }
     }
   }

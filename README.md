@@ -182,8 +182,8 @@ vmware-vks storage -n <namespace>
 # Run directly
 vmware-vks-mcp
 
-# Or via module
-python -m mcp_server
+# Or via uvx (recommended when installed with uv tool install)
+uvx --from vmware-vks vmware-vks-mcp
 ```
 
 ### Agent Configuration
@@ -194,7 +194,8 @@ Add to your AI agent's MCP config:
 {
   "mcpServers": {
     "vmware-vks": {
-      "command": "vmware-vks-mcp",
+      "command": "uvx",
+      "args": ["--from", "vmware-vks", "vmware-vks-mcp"],
       "env": {
         "VMWARE_VKS_CONFIG": "~/.vmware-vks/config.yaml"
       }

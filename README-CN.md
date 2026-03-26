@@ -182,7 +182,8 @@ vmware-vks storage -n <命名空间>
 {
   "mcpServers": {
     "vmware-vks": {
-      "command": "vmware-vks-mcp",
+      "command": "uvx",
+      "args": ["--from", "vmware-vks", "vmware-vks-mcp"],
       "env": {
         "VMWARE_VKS_CONFIG": "~/.vmware-vks/config.yaml"
       }
