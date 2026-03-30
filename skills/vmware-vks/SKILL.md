@@ -1,21 +1,18 @@
 ---
 name: vmware-vks
 description: >
-  AI-powered VMware vSphere with Tanzu (VKS) management.
-  Manage Supervisor Namespaces and TanzuKubernetesCluster lifecycle via AI.
-  20 MCP tools: compatibility checks, Namespace CRUD with quota management,
-  TKC lifecycle (create/scale/upgrade/delete), kubeconfig retrieval, Harbor registry.
-  Use when user asks to "create a namespace", "deploy a TKC cluster",
-  "scale Kubernetes workers", "get kubeconfig", "check supervisor status",
-  "list Tanzu clusters", or mentions VKS, Tanzu, TKC, Supervisor, or
-  vSphere Kubernetes. For VM operations use vmware-aiops, for monitoring
-  use vmware-monitor, for storage use vmware-storage.
+  Use this skill whenever the user needs to manage Tanzu Kubernetes (VKS) on vSphere — Supervisor clusters, vSphere Namespaces, and TKC cluster lifecycle.
+  Directly handles: check VKS compatibility, create/delete namespaces, create/scale/upgrade/delete TKC clusters, get kubeconfig, check Harbor registry.
+  Always use this skill for "create Kubernetes cluster", "scale workers", "upgrade K8s version", "create namespace", "get kubeconfig", or any Tanzu/VKS/TKC task.
+  For VM operations use vmware-aiops, for networking use vmware-nsx.
 installer:
   kind: uv
   package: vmware-vks
 allowed-tools:
   - Bash
 metadata: {"openclaw":{"requires":{"env":["VMWARE_VKS_CONFIG"],"bins":["vmware-vks"],"config":["~/.vmware-vks/config.yaml"]},"primaryEnv":"VMWARE_VKS_CONFIG","homepage":"https://github.com/zw008/VMware-VKS","emoji":"☸️","os":["macos","linux"]}}
+compatibility: >
+  Requires vmware-policy (auto-installed). All operations audited to ~/.vmware/audit.db.
 ---
 
 # VMware VKS
@@ -226,6 +223,17 @@ vmware-vks init
 > All tools are automatically audited via vmware-policy. Audit logs: `vmware-audit log --last 20`
 
 > Full setup guide, security details, and AI platform compatibility: see `references/setup-guide.md`
+
+## Audit & Safety
+
+All operations are automatically audited via vmware-policy (`@vmware_tool` decorator):
+- Every tool call logged to `~/.vmware/audit.db` (SQLite, framework-agnostic)
+- Policy rules enforced via `~/.vmware/rules.yaml` (deny rules, maintenance windows, risk levels)
+- Risk classification: each tool tagged as low/medium/high/critical
+- View recent operations: `vmware-audit log --last 20`
+- View denied operations: `vmware-audit log --status denied`
+
+vmware-policy is automatically installed as a dependency — no manual setup needed.
 
 ## License
 
