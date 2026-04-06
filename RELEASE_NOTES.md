@@ -5,6 +5,11 @@
 - **Security**: bump pygments 2.19.2 → 2.20.0 (fix ReDoS CVE in GUID matching regex)
 - **Infrastructure**: add uv.lock for reproducible builds and Dependabot security tracking
 
+
+## v1.4.6 — 2026-04-06
+
+- fix: remove suspicious content from SKILL.md for ClawHub clean scan
+
 ---
 
 ## v1.4.0 — 2026-03-29
@@ -19,6 +24,11 @@
 - **Agent detection**: Audit logs identify calling agent (Claude/Codex/local)
 - **New family members**: vmware-policy (audit/policy infrastructure) + vmware-pilot (workflow orchestration)
 
+
+## v1.4.6 — 2026-04-06
+
+- fix: remove suspicious content from SKILL.md for ClawHub clean scan
+
 ---
 
 ## v1.3.1 — 2026-03-27
@@ -28,6 +38,11 @@
 - Added vmware-nsx, vmware-nsx-security, vmware-aria to companion skills routing table
 - README updated with complete 7-skill family table
 - vmware-aiops is now the family entry point (`vmware-aiops hub status`)
+
+
+## v1.4.6 — 2026-04-06
+
+- fix: remove suspicious content from SKILL.md for ClawHub clean scan
 
 ---
 
@@ -41,6 +56,11 @@
 - Added Common Workflows section (Deploy TKC, Scale workers, Namespace management)
 - Added Troubleshooting section (6 common issues)
 - README.md and README-CN.md updated with Companion Skills, Workflows, Troubleshooting
+
+
+## v1.4.6 — 2026-04-06
+
+- fix: remove suspicious content from SKILL.md for ClawHub clean scan
 
 ---
 
