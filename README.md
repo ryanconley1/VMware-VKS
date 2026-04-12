@@ -1,6 +1,10 @@
 <!-- mcp-name: io.github.zw008/vmware-vks -->
 # VMware VKS
 
+> **Author**: Wei Zhou, VMware by Broadcom — wei-wz.zhou@broadcom.com
+> This is a community-driven project by a VMware engineer, not an official VMware product.
+> For official VMware developer tools see [developer.broadcom.com](https://developer.broadcom.com).
+
 [English](README.md) | [中文](README-CN.md)
 
 MCP Skill + CLI for VMware vSphere with Tanzu (VKS) management — Supervisor clusters, vSphere Namespaces, and TanzuKubernetesCluster lifecycle. 20 MCP tools.

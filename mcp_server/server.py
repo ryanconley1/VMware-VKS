@@ -59,7 +59,7 @@ def _get_si(target: str | None = None):
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def check_vks_compatibility(target: str | None = None) -> dict:
-    """Check if this vCenter supports VKS (requires vSphere 8.x+).
+    """[READ] Check if this vCenter supports VKS (requires vSphere 8.x+).
 
     Returns: compatible (bool), vcenter_version, wcp_enabled_clusters, hint.
     Call this first before any VKS operations.
@@ -72,7 +72,7 @@ def check_vks_compatibility(target: str | None = None) -> dict:
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def get_supervisor_status(cluster_id: str, target: str | None = None) -> dict:
-    """Get Supervisor Cluster status.
+    """[READ] Get Supervisor Cluster status.
 
     Args:
         cluster_id: Compute cluster MoRef ID (e.g. 'domain-c1').
@@ -88,7 +88,7 @@ def get_supervisor_status(cluster_id: str, target: str | None = None) -> dict:
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def list_supervisor_storage_policies(target: str | None = None) -> list[dict]:
-    """List storage policies available for Supervisor Namespaces.
+    """[READ] List storage policies available for Supervisor Namespaces.
 
     Returns list of storage policies with compatible cluster IDs.
     Use this to find valid storage_policy values before creating namespaces.
@@ -105,7 +105,7 @@ def list_supervisor_storage_policies(target: str | None = None) -> list[dict]:
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def list_namespaces(target: str | None = None) -> list[dict]:
-    """List all vSphere Namespaces with status."""
+    """[READ] List all vSphere Namespaces with status."""
     si = _get_si(target)
     from vmware_vks.ops import namespace as _ns
     return _ns.list_namespaces(si)
@@ -114,7 +114,7 @@ def list_namespaces(target: str | None = None) -> list[dict]:
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def get_namespace(name: str, target: str | None = None) -> dict:
-    """Get detailed information for a single vSphere Namespace.
+    """[READ] Get detailed information for a single vSphere Namespace.
 
     Args:
         name: Namespace name (e.g. 'dev', 'production').
@@ -137,7 +137,7 @@ def create_namespace(
     dry_run: bool = True,
     target: str | None = None,
 ) -> dict:
-    """Create a vSphere Namespace on a Supervisor Cluster.
+    """[WRITE] Create a vSphere Namespace on a Supervisor Cluster.
 
     IMPORTANT: dry_run=True by default — set dry_run=False to actually create.
 
@@ -185,7 +185,7 @@ def update_namespace(
     storage_policy: str | None = None,
     target: str | None = None,
 ) -> dict:
-    """Update vSphere Namespace resource quotas or storage policy.
+    """[WRITE] Update vSphere Namespace resource quotas or storage policy.
 
     Args:
         name: Namespace name.
@@ -217,7 +217,7 @@ def delete_namespace(
     dry_run: bool = True,
     target: str | None = None,
 ) -> dict:
-    """Delete a vSphere Namespace.
+    """[WRITE] Delete a vSphere Namespace.
 
     SAFETY: Rejects if TKC clusters exist inside. Delete TKC clusters first.
     IMPORTANT: dry_run=True by default — set dry_run=False AND confirmed=True to delete.
@@ -246,7 +246,7 @@ def delete_namespace(
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def list_vm_classes(target: str | None = None) -> list[dict]:
-    """List available VM classes for TKC node sizing.
+    """[READ] List available VM classes for TKC node sizing.
 
     Returns list with id, cpu_count, memory_mib per VM class.
     Use the 'id' field when creating TKC clusters.
@@ -263,7 +263,7 @@ def list_vm_classes(target: str | None = None) -> list[dict]:
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def list_tkc_clusters(namespace: str | None = None, target: str | None = None) -> dict:
-    """List TanzuKubernetesCluster (TKC) clusters.
+    """[READ] List TanzuKubernetesCluster (TKC) clusters.
 
     Args:
         namespace: vSphere Namespace to filter by (lists all if not specified).
@@ -279,7 +279,7 @@ def list_tkc_clusters(namespace: str | None = None, target: str | None = None) -
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def get_tkc_cluster(name: str, namespace: str, target: str | None = None) -> dict:
-    """Get detailed info for a single TKC cluster.
+    """[READ] Get detailed info for a single TKC cluster.
 
     Args:
         name: TKC cluster name.
@@ -294,7 +294,7 @@ def get_tkc_cluster(name: str, namespace: str, target: str | None = None) -> dic
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def get_tkc_available_versions(namespace: str, target: str | None = None) -> dict:
-    """List K8s versions available for new TKC clusters.
+    """[READ] List K8s versions available for new TKC clusters.
 
     Args:
         namespace: vSphere Namespace (used to connect to Supervisor).
@@ -318,7 +318,7 @@ def create_tkc_cluster(
     dry_run: bool = True,
     target: str | None = None,
 ) -> dict:
-    """Create a TanzuKubernetesCluster.
+    """[WRITE] Create a TanzuKubernetesCluster.
 
     IMPORTANT: dry_run=True by default — returns YAML plan. Set dry_run=False to apply.
 
@@ -369,7 +369,7 @@ def create_tkc_cluster(
 def scale_tkc_cluster(
     name: str, namespace: str, worker_count: int, target: str | None = None
 ) -> dict:
-    """Scale TKC cluster worker node count.
+    """[WRITE] Scale TKC cluster worker node count.
 
     Args:
         name: TKC cluster name.
@@ -397,7 +397,7 @@ def scale_tkc_cluster(
 def upgrade_tkc_cluster(
     name: str, namespace: str, k8s_version: str, target: str | None = None
 ) -> dict:
-    """Upgrade TKC cluster to a new K8s version.
+    """[WRITE] Upgrade TKC cluster to a new K8s version.
 
     Args:
         name: TKC cluster name.
@@ -430,7 +430,7 @@ def delete_tkc_cluster(
     force: bool = False,
     target: str | None = None,
 ) -> dict:
-    """Delete a TKC cluster.
+    """[WRITE] Delete a TKC cluster.
 
     SAFETY: Rejects if Deployments/StatefulSets are running (unless force=True).
     IMPORTANT: dry_run=True by default — set dry_run=False AND confirmed=True to delete.
@@ -469,7 +469,10 @@ def delete_tkc_cluster(
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def get_supervisor_kubeconfig(namespace: str, target: str | None = None) -> dict:
-    """Get kubeconfig for the Supervisor K8s API endpoint.
+    """[READ] Get kubeconfig for the Supervisor K8s API endpoint.
+
+    Security: The returned kubeconfig contains a short-lived session token.
+    Treat the raw output as a credential — do not log or share.
 
     Args:
         namespace: vSphere Namespace (context for the kubeconfig).
@@ -491,7 +494,11 @@ def get_tkc_kubeconfig(
     output_path: str | None = None,
     target: str | None = None,
 ) -> dict:
-    """Get kubeconfig for a TKC cluster.
+    """[READ] Get kubeconfig for a TKC cluster.
+
+    Security: The returned kubeconfig contains a short-lived session token.
+    Prefer writing to file (output_path) over returning inline to reduce
+    credential exposure in agent context.
 
     Args:
         name: TKC cluster name.
@@ -509,7 +516,7 @@ def get_tkc_kubeconfig(
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def get_harbor_info(target: str | None = None) -> dict:
-    """Get embedded Harbor registry info (URL, storage usage, status).
+    """[READ] Get embedded Harbor registry info (URL, storage usage, status).
 
     Returns registry URL, storage used, and health status.
     Returns error hint if Harbor is not enabled on this Supervisor.
@@ -522,7 +529,7 @@ def get_harbor_info(target: str | None = None) -> dict:
 @mcp.tool()
 @vmware_tool(risk_level="low")
 def list_namespace_storage_usage(namespace: str, target: str | None = None) -> dict:
-    """List PVCs and storage usage for a vSphere Namespace.
+    """[READ] List PVCs and storage usage for a vSphere Namespace.
 
     Args:
         namespace: vSphere Namespace name.
