@@ -56,7 +56,7 @@ def _get_si(target: str | None = None):
 # Supervisor tools
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def check_vks_compatibility(target: str | None = None) -> dict:
     """[READ] Check if this vCenter supports VKS (requires vSphere 8.x+).
@@ -64,12 +64,15 @@ def check_vks_compatibility(target: str | None = None) -> dict:
     Returns: compatible (bool), vcenter_version, wcp_enabled_clusters, hint.
     Call this first before any VKS operations.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import supervisor as _sup
-    return _sup.check_vks_compatibility(si)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import supervisor as _sup
+        return _sup.check_vks_compatibility(si)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def get_supervisor_status(cluster_id: str, target: str | None = None) -> dict:
     """[READ] Get Supervisor Cluster status.
@@ -80,12 +83,15 @@ def get_supervisor_status(cluster_id: str, target: str | None = None) -> dict:
 
     Returns: config_status, kubernetes_status, api_server_endpoint, k8s_version.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import supervisor as _sup
-    return _sup.get_supervisor_status(si, cluster_id)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import supervisor as _sup
+        return _sup.get_supervisor_status(si, cluster_id)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def list_supervisor_storage_policies(target: str | None = None) -> list[dict]:
     """[READ] List storage policies available for Supervisor Namespaces.
@@ -93,25 +99,31 @@ def list_supervisor_storage_policies(target: str | None = None) -> list[dict]:
     Returns list of storage policies with compatible cluster IDs.
     Use this to find valid storage_policy values before creating namespaces.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import supervisor as _sup
-    return _sup.list_supervisor_storage_policies(si)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import supervisor as _sup
+        return _sup.list_supervisor_storage_policies(si)
+    except Exception as e:
+        return [{"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}]
 
 
 # ---------------------------------------------------------------------------
 # Namespace tools
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def list_namespaces(target: str | None = None) -> list[dict]:
     """[READ] List all vSphere Namespaces with status."""
-    si = _get_si(target)
-    from vmware_vks.ops import namespace as _ns
-    return _ns.list_namespaces(si)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import namespace as _ns
+        return _ns.list_namespaces(si)
+    except Exception as e:
+        return [{"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}]
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def get_namespace(name: str, target: str | None = None) -> dict:
     """[READ] Get detailed information for a single vSphere Namespace.
@@ -120,12 +132,15 @@ def get_namespace(name: str, target: str | None = None) -> dict:
         name: Namespace name (e.g. 'dev', 'production').
         target: vCenter target name (uses default if not specified).
     """
-    si = _get_si(target)
-    from vmware_vks.ops import namespace as _ns
-    return _ns.get_namespace(si, name)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import namespace as _ns
+        return _ns.get_namespace(si, name)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="medium")
 def create_namespace(
     name: str,
@@ -176,7 +191,7 @@ def create_namespace(
     return result
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="medium")
 def update_namespace(
     name: str,
@@ -209,7 +224,7 @@ def update_namespace(
     return result
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="high")
 def delete_namespace(
     name: str,
@@ -243,7 +258,7 @@ def delete_namespace(
     return result
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def list_vm_classes(target: str | None = None) -> list[dict]:
     """[READ] List available VM classes for TKC node sizing.
@@ -251,16 +266,19 @@ def list_vm_classes(target: str | None = None) -> list[dict]:
     Returns list with id, cpu_count, memory_mib per VM class.
     Use the 'id' field when creating TKC clusters.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import namespace as _ns
-    return _ns.list_vm_classes(si)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import namespace as _ns
+        return _ns.list_vm_classes(si)
+    except Exception as e:
+        return [{"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}]
 
 
 # ---------------------------------------------------------------------------
 # TKC tools
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def list_tkc_clusters(namespace: str | None = None, target: str | None = None) -> dict:
     """[READ] List TanzuKubernetesCluster (TKC) clusters.
@@ -271,12 +289,15 @@ def list_tkc_clusters(namespace: str | None = None, target: str | None = None) -
 
     Returns: total count and list of clusters with status and K8s version.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import tkc as _tkc
-    return _tkc.list_tkc_clusters(si, namespace=namespace)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import tkc as _tkc
+        return _tkc.list_tkc_clusters(si, namespace=namespace)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def get_tkc_cluster(name: str, namespace: str, target: str | None = None) -> dict:
     """[READ] Get detailed info for a single TKC cluster.
@@ -286,12 +307,15 @@ def get_tkc_cluster(name: str, namespace: str, target: str | None = None) -> dic
         namespace: vSphere Namespace containing the cluster.
         target: vCenter target name.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import tkc as _tkc
-    return _tkc.get_tkc_cluster(si, name, namespace)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import tkc as _tkc
+        return _tkc.get_tkc_cluster(si, name, namespace)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def get_tkc_available_versions(namespace: str, target: str | None = None) -> dict:
     """[READ] List K8s versions available for new TKC clusters.
@@ -300,12 +324,15 @@ def get_tkc_available_versions(namespace: str, target: str | None = None) -> dic
         namespace: vSphere Namespace (used to connect to Supervisor).
         target: vCenter target name.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import tkc as _tkc
-    return _tkc.get_tkc_available_versions(si, namespace)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import tkc as _tkc
+        return _tkc.get_tkc_available_versions(si, namespace)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="medium")
 def create_tkc_cluster(
     name: str,
@@ -364,7 +391,7 @@ def create_tkc_cluster(
     return result
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="medium")
 def scale_tkc_cluster(
     name: str, namespace: str, worker_count: int, target: str | None = None
@@ -392,7 +419,7 @@ def scale_tkc_cluster(
     return result
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="medium")
 def upgrade_tkc_cluster(
     name: str, namespace: str, k8s_version: str, target: str | None = None
@@ -420,7 +447,7 @@ def upgrade_tkc_cluster(
     return result
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="high")
 def delete_tkc_cluster(
     name: str,
@@ -466,7 +493,7 @@ def delete_tkc_cluster(
 # Access tools
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def get_supervisor_kubeconfig(namespace: str, target: str | None = None) -> dict:
     """[READ] Get kubeconfig for the Supervisor K8s API endpoint.
@@ -480,13 +507,16 @@ def get_supervisor_kubeconfig(namespace: str, target: str | None = None) -> dict
 
     Returns: kubeconfig YAML string.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import kubeconfig as _kc
-    kc_str = _kc.get_supervisor_kubeconfig_str(si, namespace)
-    return {"namespace": namespace, "kubeconfig": kc_str}
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import kubeconfig as _kc
+        kc_str = _kc.get_supervisor_kubeconfig_str(si, namespace)
+        return {"namespace": namespace, "kubeconfig": kc_str}
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def get_tkc_kubeconfig(
     name: str,
@@ -506,14 +536,17 @@ def get_tkc_kubeconfig(
         output_path: Write to file if provided (e.g. '~/.kube/my-cluster.yaml').
                      Returns kubeconfig string if not specified.
     """
-    from pathlib import Path
-    si = _get_si(target)
-    from vmware_vks.ops import kubeconfig as _kc
-    path = Path(output_path).expanduser() if output_path else None
-    return _kc.write_kubeconfig(si, name, namespace, output_path=path)
+    try:
+        from pathlib import Path
+        si = _get_si(target)
+        from vmware_vks.ops import kubeconfig as _kc
+        path = Path(output_path).expanduser() if output_path else None
+        return _kc.write_kubeconfig(si, name, namespace, output_path=path)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def get_harbor_info(target: str | None = None) -> dict:
     """[READ] Get embedded Harbor registry info (URL, storage usage, status).
@@ -521,12 +554,15 @@ def get_harbor_info(target: str | None = None) -> dict:
     Returns registry URL, storage used, and health status.
     Returns error hint if Harbor is not enabled on this Supervisor.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import harbor as _harbor
-    return _harbor.get_harbor_info(si)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import harbor as _harbor
+        return _harbor.get_harbor_info(si)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
 def list_namespace_storage_usage(namespace: str, target: str | None = None) -> dict:
     """[READ] List PVCs and storage usage for a vSphere Namespace.
@@ -535,9 +571,12 @@ def list_namespace_storage_usage(namespace: str, target: str | None = None) -> d
         namespace: vSphere Namespace name.
         target: vCenter target name.
     """
-    si = _get_si(target)
-    from vmware_vks.ops import storage as _storage
-    return _storage.list_namespace_storage_usage(si, namespace)
+    try:
+        si = _get_si(target)
+        from vmware_vks.ops import storage as _storage
+        return _storage.list_namespace_storage_usage(si, namespace)
+    except Exception as e:
+        return {"error": str(e), "hint": "Run 'vmware-vks doctor' to verify connectivity."}
 
 
 def main() -> None:
